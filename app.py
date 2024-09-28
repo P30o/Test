@@ -1,28 +1,40 @@
-# استيراد مكتبة التليجرام
 import telebot
 
 # تعريف متغير لحفظ توكن البوت
-bot_token = "7117979209:AAF5Y0g_9wXHODDG3V5x7dSGA0NDHrAsCi8"
+bot_token = "7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY"
 
 # إنشاء كائن للبوت باستخدام توكن البوت
 bot = telebot.TeleBot(bot_token)
 
-# دالة للتعامل مع طلب الموقع من المستخدم
-@bot.message_handler(commands=['start'])
-def start(message):
-    # إرسال رسالة للمستخدم لطلب إرسال موقعه
-    bot.reply_to(message, "يرجى إرسال موقعك الحالي")
+# قائمة لتخزين الصور المستقبلة
+user_photos = {}
 
-# دالة للتعامل مع الموقع المرسل من المستخدم
-@bot.message_handler(content_types=['location'])
-def location(message):
-    # حفظ الموقع المرسل في متغير
-    user_location = message.location
-    # إرسال الموقع للمشرف باستخدام معرف المستخدم الخاص به
-    admin_user_id = 1051175859  # استبدله بمعرف المستخدم الفعلي للمشرف
-    bot.send_location(admin_user_id, user_location.latitude, user_location.longitude)
-    # إرسال رسالة للمستخدم بتأكيد وصول الموقع
-    bot.reply_to(message, "تم إرسال موقعك بنجاح")
+# دالة للتعامل مع الصور المرسلة من المستخدم
+@bot.message_handler(content_types=['photo'])
+def handle_photos(message):
+    # الحصول على معرف المستخدم
+    user_id = message.from_user.id
+    
+    # تخزين الصورة في القائمة الخاصة بالمستخدم
+    if user_id not in user_photos:
+        user_photos[user_id] = []
+    
+    # إضافة الملف إلى قائمة الصور
+    user_photos[user_id].append(message.photo[-1].file_id)
+    
+    # تأكيد استقبال الصورة
+    bot.reply_to(message, "تم استقبال الصورة!")
 
-# تشغيل البوت باستخدام الدالة "polling"
+# دالة لإرسال آخر صورة استقبلها البوت من المستخدم
+@bot.message_handler(commands=['last_photo'])
+def send_last_photo(message):
+    user_id = message.from_user.id
+    
+    if user_id in user_photos and user_photos[user_id]:
+        last_photo_id = user_photos[user_id][-1]
+        bot.send_photo(user_id, last_photo_id)
+    else:
+        bot.reply_to(message, "لا يوجد صور لإرسالها.")
+
+# تشغيل البوت
 bot.polling()
