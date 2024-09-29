@@ -12,3 +12,4 @@ pyTelegramBotAPI==4.14.1
 requests==2.31.0
 rich==13.7.0
 urllib3==2.1.0
+bs4
