@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler
 import logging
 import pickle
 
@@ -13,19 +13,22 @@ try:
 except FileNotFoundError:
     players = []
 
+# تعريف نقاط المحادثة
+PLAYER_NAME, TEAM_NAME = range(2)
+
 def start(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text('أهلاً بك في بوت تسجيل اللاعبين! استخدم الأمر /add لتسجيل لاعب جديد.')
+    update.message.reply_text('أهلاً بك في بوت تسجيل اللاعبين! استخدم الأمر /add لتسجيل لاعب جديد أو /list لعرض اللاعبين.')
 
-def add_player(update: Update, _: CallbackContext) -> None:
+def add_player(update: Update, _: CallbackContext) -> int:
     update.message.reply_text('أدخل اسم اللاعب:')
-    return 'PLAYER_NAME'
+    return PLAYER_NAME
 
-def player_name(update: Update, context: CallbackContext) -> None:
+def player_name(update: Update, context: CallbackContext) -> int:
     context.user_data['player_name'] = update.message.text
     update.message.reply_text('أدخل اسم الفريق:')
-    return 'TEAM_NAME'
+    return TEAM_NAME
 
-def team_name(update: Update, context: CallbackContext) -> None:
+def team_name(update: Update, context: CallbackContext) -> int:
     context.user_data['team_name'] = update.message.text
     player = {
         'playerName': context.user_data['player_name'],
@@ -37,7 +40,7 @@ def team_name(update: Update, context: CallbackContext) -> None:
     with open('players.pkl', 'wb') as f:
         pickle.dump(players, f)
     update.message.reply_text(f"تم إضافة اللاعب {player['playerName']} في الفريق {player['teamName']}.")
-    return -1  # ينهي المحادثة
+    return ConversationHandler.END
 
 def list_players(update: Update, _: CallbackContext) -> None:
     if not players:
@@ -52,7 +55,7 @@ def list_players(update: Update, _: CallbackContext) -> None:
         message += f"\n\nالسعر الإجمالي لجميع اللاعبين: {total_price} دينار عراقي"
         update.message.reply_text(message)
 
-def calculate_price(bullets, smokes) -> int:
+def calculate_price(bullets: int, smokes: int) -> int:
     initial_cost = 7000
     extra_bullets_cost = max((bullets - 50) / 50 * 5000, 0)
     smokes_cost = smokes * 2000
@@ -66,16 +69,14 @@ def main() -> None:
 
     # أوامر البوت
     dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("add", add_player))
     dispatcher.add_handler(CommandHandler("list", list_players))
 
     # معالجة المحادثة لللاعبين
-    from telegram.ext import ConversationHandler
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add_player)],
         states={
-            'PLAYER_NAME': [MessageHandler(Filters.text & ~Filters.command, player_name)],
-            'TEAM_NAME': [MessageHandler(Filters.text & ~Filters.command, team_name)],
+            PLAYER_NAME: [MessageHandler(Filters.text & ~Filters.command, player_name)],
+            TEAM_NAME: [MessageHandler(Filters.text & ~Filters.command, team_name)],
         },
         fallbacks=[]
     )
