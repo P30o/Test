@@ -1,41 +1,43 @@
-import requests
-from bs4 import BeautifulSoup
-import telebot
+   import os
+   from pywebcopy import save_webpage
+   import telebot
 
-# استبدل هذا بـ رمز البوت الخاص بك
-bot = telebot.TeleBot("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
+   # استبدل هذا بـ رمز البوت الخاص بك
+   bot = telebot.TeleBot("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
 
-# وظيفة لتحميل صفحة ويب وإرجاع محتواها النصي
-def download_page_content(url):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # تحقق من وجود خطأ في الطلب
-        soup = BeautifulSoup(response.text, 'html.parser')
-        return soup.prettify()
-    except Exception as e:
-        return f"خطأ: {str(e)}"
+   # مسار حفظ الملفات
+   DOWNLOAD_FOLDER = "downloaded_sites"
 
-# معالج لتلقي الرسائل التي تحتوي على روابط
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    url = message.text
-    if url.startswith("http://") or url.startswith("https://"):
-        bot.send_message(message.chat.id, "جاري تحميل المحتوى...")
-        content = download_page_content(url)
-        if "خطأ" not in content:
-            # إذا كان المحتوى صغيرًا، أرسله كنص
-            if len(content) < 4096:  # الحد الأقصى لطول الرسالة في تلغرام هو 4096 حرف
-                bot.send_message(message.chat.id, content)
-            else:
-                # إذا كان المحتوى كبيرًا، أرسله كملف
-                with open("downloaded_page.html", "w", encoding='utf-8') as file:
-                    file.write(content)
-                with open("downloaded_page.html", "rb") as file:
-                    bot.send_document(message.chat.id, file)
-        else:
-            bot.send_message(message.chat.id, content)
-    else:
-        bot.send_message(message.chat.id, "يرجى إرسال رابط صالح يبدأ بـ http:// أو https://")
+   if not os.path.exists(DOWNLOAD_FOLDER):
+       os.makedirs(DOWNLOAD_FOLDER)
 
-# بدء تشغيل البوت
-bot.infinity_polling()
+   # وظيفة لتحميل الموقع بالكامل
+   def download_full_site(url, download_folder):
+       try:
+           kwargs = {'bypass_robots': True, 'project_name': 'site_copy'}
+           save_webpage(url, download_folder, **kwargs)
+           return os.path.join(download_folder, 'site_copy')
+       except Exception as e:
+           return f"خطأ: {str(e)}"
+
+   # معالج لتلقي الرسائل التي تحتوي على روابط
+   @bot.message_handler(func=lambda message: True)
+   def handle_message(message):
+       url = message.text
+       if url.startswith("http://") or url.startswith("https://"):
+           bot.send_message(message.chat.id, "جاري تحميل الموقع بالكامل...")
+           download_path = download_full_site(url, DOWNLOAD_FOLDER)
+           if not download_path.startswith("خطأ"):
+               zip_name = f"{download_path}.zip"
+               os.system(f"zip -r {zip_name} {download_path}")
+               with open(zip_name, "rb") as file:
+                   bot.send_document(message.chat.id, file)
+               os.remove(zip_name)  # حذف الملف المضغوط بعد الإرسال
+           else:
+               bot.send_message(message.chat.id, download_path)
+       else:
+           bot.send_message(message.chat.id, "يرجى إرسال رابط صالح يبدأ بـ http:// أو https://")
+
+   # بدء تشغيل البوت
+   bot.infinity_polling()
+   
