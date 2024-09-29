@@ -1,4 +1,3 @@
-python
 import telebot
 from telebot.types import Location, ReplyKeyboardMarkup, KeyboardButton, Contact
 import random
