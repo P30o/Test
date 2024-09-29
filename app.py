@@ -1,43 +1,91 @@
-   import os
-   from pywebcopy import save_webpage
-   import telebot
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, MessageHandler, Filters
+import logging
+import pickle
 
-   # استبدل هذا بـ رمز البوت الخاص بك
-   bot = telebot.TeleBot("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
+# إعدادات تسجيل الدخول
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-   # مسار حفظ الملفات
-   DOWNLOAD_FOLDER = "downloaded_sites"
+# تحميل أو إنشاء قائمة اللاعبين
+try:
+    with open('players.pkl', 'rb') as f:
+        players = pickle.load(f)
+except FileNotFoundError:
+    players = []
 
-   if not os.path.exists(DOWNLOAD_FOLDER):
-       os.makedirs(DOWNLOAD_FOLDER)
+def start(update: Update, _: CallbackContext) -> None:
+    update.message.reply_text('أهلاً بك في بوت تسجيل اللاعبين! استخدم الأمر /add لتسجيل لاعب جديد.')
 
-   # وظيفة لتحميل الموقع بالكامل
-   def download_full_site(url, download_folder):
-       try:
-           kwargs = {'bypass_robots': True, 'project_name': 'site_copy'}
-           save_webpage(url, download_folder, **kwargs)
-           return os.path.join(download_folder, 'site_copy')
-       except Exception as e:
-           return f"خطأ: {str(e)}"
+def add_player(update: Update, _: CallbackContext) -> None:
+    update.message.reply_text('أدخل اسم اللاعب:')
+    return 'PLAYER_NAME'
 
-   # معالج لتلقي الرسائل التي تحتوي على روابط
-   @bot.message_handler(func=lambda message: True)
-   def handle_message(message):
-       url = message.text
-       if url.startswith("http://") or url.startswith("https://"):
-           bot.send_message(message.chat.id, "جاري تحميل الموقع بالكامل...")
-           download_path = download_full_site(url, DOWNLOAD_FOLDER)
-           if not download_path.startswith("خطأ"):
-               zip_name = f"{download_path}.zip"
-               os.system(f"zip -r {zip_name} {download_path}")
-               with open(zip_name, "rb") as file:
-                   bot.send_document(message.chat.id, file)
-               os.remove(zip_name)  # حذف الملف المضغوط بعد الإرسال
-           else:
-               bot.send_message(message.chat.id, download_path)
-       else:
-           bot.send_message(message.chat.id, "يرجى إرسال رابط صالح يبدأ بـ http:// أو https://")
+def player_name(update: Update, context: CallbackContext) -> None:
+    context.user_data['player_name'] = update.message.text
+    update.message.reply_text('أدخل اسم الفريق:')
+    return 'TEAM_NAME'
 
-   # بدء تشغيل البوت
-   bot.infinity_polling()
-   
+def team_name(update: Update, context: CallbackContext) -> None:
+    context.user_data['team_name'] = update.message.text
+    player = {
+        'playerName': context.user_data['player_name'],
+        'teamName': context.user_data['team_name'],
+        'bullets': 50,
+        'smokes': 0
+    }
+    players.append(player)
+    with open('players.pkl', 'wb') as f:
+        pickle.dump(players, f)
+    update.message.reply_text(f"تم إضافة اللاعب {player['playerName']} في الفريق {player['teamName']}.")
+    return -1  # ينهي المحادثة
+
+def list_players(update: Update, _: CallbackContext) -> None:
+    if not players:
+        update.message.reply_text('لا يوجد لاعبين مسجلين.')
+    else:
+        message = "قائمة اللاعبين:\n"
+        total_price = 0
+        for player in players:
+            price = calculate_price(player['bullets'], player['smokes'])
+            total_price += price
+            message += f"\nاسم الفريق: {player['teamName']}, اسم اللاعب: {player['playerName']}, الطلقات: {player['bullets']}, اسموك: {player['smokes']}, السعر: {price} دينار عراقي"
+        message += f"\n\nالسعر الإجمالي لجميع اللاعبين: {total_price} دينار عراقي"
+        update.message.reply_text(message)
+
+def calculate_price(bullets, smokes) -> int:
+    initial_cost = 7000
+    extra_bullets_cost = max((bullets - 50) / 50 * 5000, 0)
+    smokes_cost = smokes * 2000
+    return int(initial_cost + extra_bullets_cost + smokes_cost)
+
+def main() -> None:
+    # ضع هنا توكن البوت الخاص بك
+    updater = Updater("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
+
+    dispatcher = updater.dispatcher
+
+    # أوامر البوت
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("add", add_player))
+    dispatcher.add_handler(CommandHandler("list", list_players))
+
+    # معالجة المحادثة لللاعبين
+    from telegram.ext import ConversationHandler
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('add', add_player)],
+        states={
+            'PLAYER_NAME': [MessageHandler(Filters.text & ~Filters.command, player_name)],
+            'TEAM_NAME': [MessageHandler(Filters.text & ~Filters.command, team_name)],
+        },
+        fallbacks=[]
+    )
+    dispatcher.add_handler(conv_handler)
+
+    # تشغيل البوت
+    updater.start_polling()
+
+    # إيقاف البوت عند الضغط على Ctrl+C
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
