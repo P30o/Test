@@ -1,46 +1,58 @@
-import logging
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
-import random
-import string
+import requests , telebot
+from telebot import types
 
-# تفعيل التسجيل (logging)
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+bot = "توكنك"#امسح كلمت التوكن فقط وخلي توكنك 
+bot = telebot.TeleBot(bot)
 
-logger = logging.getLogger(__name__)
+btn1 = types.InlineKeyboardButton(text='؟', callback_data='check')
 
-# دالة لتوليد رابط فريد للمستخدم
-def generate_unique_link(user_id):
-    unique_code = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
-    return f"https://safepichub.netlify.app?user={user_id}&code={unique_code}"
+@bot.message_handler(commands=["start"])
+def start(message):
+    
+    brok = types.InlineKeyboardMarkup()
+    brok.row_width = 2
+    brok.add(btn1)
+    first_name = message.from_user.first_name
+    bot.send_message(message.chat.id, f'''
+**
+مرحبا بك - [{first_name}](tg://settings)
+& في بوت معلومات ip 
+ارسل ip شخص مراد معرفه معلومات
+وانتظر ...
+**''', parse_mode='Markdown', reply_to_message_id=message.message_id, reply_markup=brok)
 
-# دالة تعالج الأمر /start
-def start(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
-    user_agent = update.message.from_user.username  # يمكنك تغيير ذلك إلى ما تراه مناسبًا
+@bot.callback_query_handler(func=lambda call: True)
+def ip(call):
+  bot.send_message(call.message.chat.id,'ارسل الان الـ ip')
+  if call.data=='check':
+   @bot.message_handler(func=lambda m: True)
+   def info(message):
+    msg = message.text
+    try:
+    	url = requests.get(f'https://ipinfo.io/{msg}/geo').json()
+    	ip = url['ip']
+    	ci = url['city']
+    	reg = url['region']
+    	co = url['country']
+    	l = url['loc']
+    	org = url['org']
+    	tim = url['timezone']
+    	bot.send_message(message.chat.id, f'''
+    معلومات  ~ {ip} ⤵️
 
-    # توليد الرابط الفريد
-    unique_link = generate_unique_link(user_id)
 
-    # إرسال الرسالة للمستخدم
-    message = f"User Agent: {user_agent} | Unique Link: {unique_link}"
-    update.message.reply_text(message)
-
-def main():
-    # استبدل TOKEN الخاص بك هنا
-    updater = Updater("7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY")
-
-    dispatcher = updater.dispatcher
-
-    # إضافة معالج للأمر /start
-    dispatcher.add_handler(CommandHandler("start", start))
-
-    # بدء البوت
-    updater.start_polling()
-
-    # البقاء في حالة تشغيل حتى يتم إيقافه
-    updater.idle()
-
-if __name__ == '__main__':
-    main()
+مدينة : {ci}
+منطقة : {reg}
+رمز الدولة : {co}
+المكان : {l}
+السكن : {org}
+الوحدة الزمنية : {tim}
+  ''')
+  
+    except:
+     bot.send_message(message.chat.id,'تأكد من صحة ip ..')
+     
+     
+     
+print('bot run')
+bot.infinity_polling()
