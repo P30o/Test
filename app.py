@@ -13,6 +13,12 @@ def fetch_website_content(url):
     except requests.exceptions.RequestException as e:
         return str(e)
 
+# دالة للتعامل مع أمر /start
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text(
+        "مرحبًا! أرسل لي رابط الموقع وسأقوم بسحب محتواه."
+    )
+
 # دالة للتعامل مع الرسائل
 def handle_message(update: Update, context: CallbackContext):
     url = update.message.text
@@ -35,6 +41,7 @@ def main():
     updater = Updater('7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY', use_context=True)
 
     dp = updater.dispatcher
+    dp.add_handler(CommandHandler("start", start))  # إضافة معالجة لأمر /start
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
     updater.start_polling()
