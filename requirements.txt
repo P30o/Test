@@ -13,3 +13,6 @@ requests==2.31.0
 rich==13.7.0
 urllib3==2.1.0
 beautifulsoup4  # For bs4 usage
+python-telegram-bot
+requests
+beautifulsoup4
