@@ -1,67 +1,57 @@
+import os
 import requests
-import telebot
-from telebot import types
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
-# ضع توكن البوت الخاص بك هنا
-bot_token = "7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY"  # احذف كلمة توكنك وأضف التوكن الخاص بك
-bot = telebot.TeleBot(bot_token)
+# توكن بوت التليجرام
+TELEGRAM_BOT_TOKEN = "7628474532:AAHLQxj2lbrrlcR4j1wjcmFlbWzQtZ4JnsY"
 
-# API الخاص بموقع Numverify (تحتاج إلى التسجيل للحصول على مفتاح API)
-api_key = "31f7f11224bb0c7d6439de6f2f768533"  # ضع مفتاح API الخاص بك هنا
+# المجلد الذي سيتم حفظ الموقع فيه
+OUTPUT_DIR = "/path/to/save/websites"
 
-# زر Inline لإجراء الفحص
-btn1 = types.InlineKeyboardButton(text='🔍 تحقق من رقم الهاتف', callback_data='check_phone')
+def download_website(website_url):
+    """تنفذ أمر wget لتحميل الموقع."""
+    command = f'wget --mirror --convert-links --adjust-extension --page-requisites --no-parent --directory-prefix={OUTPUT_DIR} {website_url}'
+    result = os.system(command)
+    return result == 0
 
-@bot.message_handler(commands=["start"])
-def start(message):
-    # إنشاء لوحة المفاتيح مع الزر
-    brok = types.InlineKeyboardMarkup()
-    brok.row_width = 2
-    brok.add(btn1)
-    
-    first_name = message.from_user.first_name
-    bot.send_message(message.chat.id, f'''
-**
-مرحباً بك - [{first_name}](tg://settings)
-في بوت معلومات رقم الهاتف.
-أرسل رقم الهاتف مع رمز الدولة (+964...).
-**''', parse_mode='Markdown', reply_markup=brok)
+def start(update: Update, context: CallbackContext) -> None:
+    """الرد على أمر /start."""
+    update.message.reply_text('مرحباً! أرسل لي رابط الموقع الذي تريد تحميله.')
 
-@bot.callback_query_handler(func=lambda call: call.data == 'check_phone')
-def phone(call):
-    bot.send_message(call.message.chat.id, '🔍 أرسل الآن رقم الهاتف الذي ترغب في التحقق منه (مع رمز الدولة).')
-
-    # هنا ننتظر الرسالة التالية من المستخدم التي تحتوي على رقم الهاتف
-    @bot.message_handler(func=lambda m: True)
-    def phone_info(message):
-        phone_number = message.text
-        try:
-            # جلب المعلومات من Numverify API
-            url = f"http://apilayer.net/api/validate?access_key={api_key}&number={phone_number}"
-            response = requests.get(url).json()
-
-            if response['valid']:
-                number = response.get('number', 'غير متوفر')
-                country_name = response.get('country_name', 'غير متوفر')
-                location = response.get('location', 'غير متوفر')
-                carrier = response.get('carrier', 'غير متوفر')
-                line_type = response.get('line_type', 'غير متوفر')
-                
-                # إرسال المعلومات للمستخدم
-                bot.send_message(message.chat.id, f'''
-معلومات رقم الهاتف ~ {number} ⤵️
-
-🏳️ الدولة: {country_name}
-📍 الموقع: {location}
-📡 مزود الخدمة: {carrier}
-📞 نوع الخط: {line_type}
-                ''')
-            else:
-                bot.send_message(message.chat.id, '❌ الرقم غير صالح. تأكد من إدخال الرقم بشكل صحيح.')
+def download_command(update: Update, context: CallbackContext) -> None:
+    """تنفيذ أمر التحميل عند استقبال رابط."""
+    if context.args:
+        website_url = context.args[0]
+        update.message.reply_text(f"جارٍ تحميل الموقع: {website_url}")
         
-        except:
-            bot.send_message(message.chat.id, '❌ حدث خطأ أثناء جلب المعلومات. حاول مرة أخرى لاحقاً.')
+        # تحميل الموقع
+        if download_website(website_url):
+            message = f"✅ تم تحميل الموقع بنجاح!"
+        else:
+            message = "❌ حدث خطأ أثناء تحميل الموقع."
+        
+        # إرسال نتيجة التحميل
+        update.message.reply_text(message)
+    else:
+        update.message.reply_text("❌ يرجى إرسال رابط صالح.")
 
-# طباعة للتأكد من أن البوت يعمل
-print('Bot is running...')
-bot.infinity_polling()
+def main():
+    """تشغيل البوت."""
+    updater = Updater(TELEGRAM_BOT_TOKEN)
+    
+    # الحصول على الـ Dispatcher لتسجيل الأوامر
+    dispatcher = updater.dispatcher
+
+    # تسجيل الأوامر
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("download", download_command))
+
+    # بدء البوت
+    updater.start_polling()
+
+    # إبقاء البوت مستمراً حتى يتم إيقافه
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
