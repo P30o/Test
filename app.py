@@ -3,6 +3,7 @@ import os
 import requests
 import shutil
 from urllib.parse import urlparse
+import urllib.parse
 
 app = Flask(__name__)
 
@@ -19,33 +20,60 @@ def download_website():
     """تحميل موقع بناءً على URL المدخل."""
     data = request.json
     website_url = data.get("url")
-    
+
     if not website_url:
         return jsonify({"error": "يرجى تقديم رابط صالح."}), 400
     
     folder_name = urlparse(website_url).netloc
     full_output_path = os.path.join(OUTPUT_DIR, folder_name)
 
-    if download_website(website_url, full_output_path):
+    if download_website_content(website_url, full_output_path):
         zip_file_path = zip_directory(full_output_path)
         send_file_to_telegram(zip_file_path)
         return jsonify({"message": "تم تحميل الموقع وضغطه بنجاح!", "file": zip_file_path}), 200
     else:
         return jsonify({"error": "حدث خطأ أثناء تحميل الموقع."}), 500
 
-def download_website(website_url: str, output_dir: str) -> bool:
+def download_website_content(website_url: str, output_dir: str) -> bool:
     """تحميل محتوى الموقع وحفظه في مجلد."""
     try:
+        # احفظ ملف HTML الرئيسي
         response = requests.get(website_url)
-        response.raise_for_status()  # تحقق من نجاح الطلب
+        response.raise_for_status()
 
-        # احفظ المحتوى في ملف HTML
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as file:
             file.write(response.text)
-        
+
+        # استخدم BeautifulSoup لتحميل الموارد الأخرى
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # تحميل جميع الروابط من HTML
+        resources = []
+
+        for tag in soup.findAll(['link', 'script', 'img']):
+            if tag.name == 'link' and 'href' in tag.attrs:
+                resources.append(tag['href'])
+            elif tag.name == 'script' and 'src' in tag.attrs:
+                resources.append(tag['src'])
+            elif tag.name == 'img' and 'src' in tag.attrs:
+                resources.append(tag['src'])
+
+        # تحميل كل مورد وحفظه
+        for resource in resources:
+            resource_url = urllib.parse.urljoin(website_url, resource)
+            resource_name = os.path.basename(resource)
+
+            resource_response = requests.get(resource_url)
+            resource_response.raise_for_status()
+
+            with open(os.path.join(output_dir, resource_name), 'wb') as resource_file:
+                resource_file.write(resource_response.content)
+
         return True
     except Exception as e:
         print(f"حدث خطأ: {e}")
