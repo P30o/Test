@@ -64,5 +64,36 @@ def send_file_to_telegram(file_path: str):
                       data={'chat_id': CHAT_ID}, 
                       files={'document': file})
 
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    """التعامل مع الرسائل المستلمة من تيليجرام."""
+    data = request.json
+
+    # تأكد من أن الرسالة تحتوي على نص
+    if 'message' in data and 'text' in data['message']:
+        message_text = data['message']['text']
+        chat_id = data['message']['chat']['id']
+
+        # تحقق من وجود الأمر /start
+        if message_text == '/start':
+            send_message(chat_id, "مرحبًا بك في البوت! أرسل رابطًا لتحميل الموقع.")
+        
+        # تحقق من وجود رابط
+        elif message_text.startswith("http://") or message_text.startswith("https://"):
+            url = message_text
+            website_url = {"url": url}
+            download_website()  # استدعاء الدالة لتحميل الموقع
+            
+            send_message(chat_id, "تم إرسال الطلب لتحميل الموقع.")
+        else:
+            send_message(chat_id, "يرجى إرسال رابط صحيح.")
+
+    return jsonify({"status": "ok"}), 200
+
+def send_message(chat_id, text):
+    """إرسال رسالة إلى تيليجرام."""
+    requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", 
+                  data={'chat_id': chat_id, 'text': text})
+
 if __name__ == '__main__':
     app.run(debug=True)
